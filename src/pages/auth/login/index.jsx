@@ -2,14 +2,75 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { apiClient } from "@/lib/api_client"
+import { LOGIN_ROUTE } from "@/utils/constants"
+import { loginSchema } from "@/utils/validation_schema"
 import { AlignRight, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 const Login = () => {
+    const navigate = useNavigate();
+
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const toggleShowPassword = () => setShowPassword((prev) => !prev);
+
+    const validateForm = async () => {
+        try {
+            await loginSchema.validate({ email, password }, { abortEarly: false });
+
+            setErrors({});
+            return true;
+        } catch (error) {
+            const newState = error.inner.reduce((acc, current) => {
+                if (!acc[current.path]) acc[current.path] = current.message;
+                return acc;
+            }, {});
+
+            setErrors(newState);
+            return false;
+        }
+    }
+
+    const handleSubmit = async () => {
+        try {
+            const isValid = await validateForm();
+
+            if (!isValid) return;
+
+            const response = await apiClient.post(
+                LOGIN_ROUTE,
+                { email, password },
+                { withCredentials: true } // set the cookie in browser
+            );
+
+            if (response.data.data.id) {
+                if (response.data.data.profileSetup) navigate('/chat');
+                else navigate('/profile');
+            }
+        } catch (error) {
+            if (error.response) {
+                const { message, data } = error.response.data;
+                let description = data;
+
+                if (data && data.errors) {
+                    description = data.errors.map((el, index) => (<div key={index}>{el.message}</div>))
+                }
+
+                toast.error(message, {
+                    description,
+                    duration: 10000 // 10 seconds
+                });
+            } else {
+                toast.error("Internal Server Error");
+            }
+        }
+    };
 
     return (
         <div className="h-screen w-screen flex justify-center items-center">
@@ -36,11 +97,16 @@ const Login = () => {
                     <div className="grid gap-5">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
+
                             <Input
                                 type="email"
                                 id="email"
                                 placeholder="Enter your email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                             />
+
+                            {errors.email && <span className="text-xs text-red-500 font-medium">{errors.email}</span>}
                         </div>
 
                         <div className="grid gap-2">
@@ -52,6 +118,8 @@ const Login = () => {
                                     id="password"
                                     placeholder="Enter your password"
                                     className="pr-11"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                 />
 
                                 <div
@@ -61,12 +129,14 @@ const Login = () => {
                                     {showPassword ? <EyeOff size={22} strokeWidth={1.75} /> : <Eye size={22} strokeWidth={1.75} />}
                                 </div>
                             </div>
+
+                            {errors.password && <span className="text-xs text-red-500 font-medium">{errors.password}</span>}
                         </div>
                     </div>
                 </CardContent>
 
                 <CardFooter>
-                    <Button className="w-full mt-5 mb-3">Sign In</Button>
+                    <Button onClick={handleSubmit} className="w-full mt-5 mb-3">Sign In</Button>
                 </CardFooter>
             </Card>
         </div>

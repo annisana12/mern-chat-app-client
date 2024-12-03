@@ -4,13 +4,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiClient } from "@/lib/api_client"
 import { SIGNUP_ROUTE } from "@/utils/constants"
-import { authSchema } from "@/utils/validation_schema"
+import { registerSchema } from "@/utils/validation_schema"
 import { AlignRight, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 const Register = () => {
+    const navigate = useNavigate();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -20,7 +22,7 @@ const Register = () => {
 
     const validateForm = async () => {
         try {
-            await authSchema.validate({ email, password }, { abortEarly: false });
+            await registerSchema.validate({ email, password }, { abortEarly: false });
 
             setErrors({});
             return true;
@@ -47,7 +49,9 @@ const Register = () => {
                 { withCredentials: true } // set the cookie in browser
             );
 
-            toast.success("Account created successfully");
+            if (response.status === 201) {
+                navigate('/profile');
+            }
         } catch (error) {
             if (error.response) {
                 const { message, data } = error.response.data;
