@@ -2,13 +2,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { apiClient } from "@/lib/api_client"
+import { apiRequest } from "@/lib/api_client"
+import { useAppStore } from "@/store"
 import { SIGNUP_ROUTE } from "@/utils/constants"
 import { registerSchema } from "@/utils/validation_schema"
 import { AlignRight, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { toast } from "sonner"
 
 const Register = () => {
     const navigate = useNavigate();
@@ -17,6 +17,8 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
+
+    const setUserInfo = useAppStore((state) => state.setUserInfo);
 
     const toggleShowPassword = () => setShowPassword((prev) => !prev);
 
@@ -38,36 +40,22 @@ const Register = () => {
     }
 
     const handleSubmit = async () => {
-        try {
-            const isValid = await validateForm();
+        const isValid = await validateForm();
 
-            if (!isValid) return;
+        if (!isValid) return;
 
-            const response = await apiClient.post(
-                SIGNUP_ROUTE,
-                { email, password },
-                { withCredentials: true } // set the cookie in browser
-            );
+        const response = await apiRequest(
+            'post',
+            SIGNUP_ROUTE,
+            { email, password },
+            { withCredentials: true },
+            10000 // 10 seconds
+        )
 
-            if (response.status === 201) {
-                navigate('/profile');
-            }
-        } catch (error) {
-            if (error.response) {
-                const { message, data } = error.response.data;
-                let description = data;
-
-                if (data && data.errors) {
-                    description = data.errors.map((el, index) => (<div key={index}>{el.message}</div>))
-                }
-
-                toast.error(message, {
-                    description,
-                    duration: 10000 // 10 seconds
-                });
-            } else {
-                toast.error("Internal Server Error");
-            }
+        if (response && response.status === 201) {
+            setUserInfo(response.data.data);
+            
+            navigate('/profile');
         }
     };
 
