@@ -65,7 +65,7 @@ const App = () => {
         if (!userinfo) refreshToken();
     }, [userinfo, setUserInfo, setAccessToken]);
 
-    if (!loading) {
+    if (loading) {
         return (
             <div className="h-screen w-screen flex justify-center items-center">
                 <div className="flex flex-col space-y-5 w-1/2 max-w-xs items-end">
