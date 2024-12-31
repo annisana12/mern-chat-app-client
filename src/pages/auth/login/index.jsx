@@ -48,7 +48,7 @@ const Login = () => {
             'post',
             LOGIN_ROUTE,
             { email, password },
-            { withCredentials: true },
+            {},
             10000 // 10 seconds
         );
 

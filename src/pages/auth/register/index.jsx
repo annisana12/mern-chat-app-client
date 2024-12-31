@@ -48,13 +48,13 @@ const Register = () => {
             'post',
             SIGNUP_ROUTE,
             { email, password },
-            { withCredentials: true },
+            {},
             10000 // 10 seconds
         )
 
         if (response && response.status === 201) {
             setUserInfo(response.data.data);
-            
+
             navigate('/profile');
         }
     };
