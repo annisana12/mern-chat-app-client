@@ -6,12 +6,12 @@ export function cn(...inputs) {
 }
 
 export const profileColors = [
-    "rose-600",
-    "pink-600",
-    "violet-600",
-    "blue-500",
-    "emerald-500",
-    "orange-500"
+    "bg-rose-600",
+    "bg-pink-600",
+    "bg-violet-600",
+    "bg-blue-500",
+    "bg-emerald-500",
+    "bg-orange-500"
 ];
 
 export const getRandomProfileColor = () => {

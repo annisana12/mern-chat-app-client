@@ -78,7 +78,7 @@ const Profile = () => {
                         <div className="relative w-28 md:w-32">
                             <Avatar className="w-28 h-28 md:w-32 md:h-32">
                                 <AvatarImage src={imagePreview} alt="profile-picture" />
-                                <AvatarFallback className={`bg-${profileColor} text-white text-5xl`}>
+                                <AvatarFallback className={`${profileColor} text-white text-5xl`}>
                                     {name.trim().charAt(0).toUpperCase() || userinfo.email.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
@@ -122,15 +122,15 @@ const Profile = () => {
                                 !image &&
                                 <div className="grid grid-cols-6 gap-3">
                                     {
-                                        profileColors.map((color, index) => (
+                                        profileColors.map((bgColor, index) => (
                                             <div className="flex justify-center" key={index}>
                                                 <Button
-                                                    onClick={() => setProfileColor(color)}
-                                                    className={`rounded-full bg-${color} w-7 h-7 hover:bg-${color} hover:opacity-75`}
+                                                    onClick={() => setProfileColor(bgColor)}
+                                                    className={`rounded-full ${bgColor} w-7 h-7 hover:${bgColor} hover:opacity-75`}
                                                     size="icon"
-                                                    disabled={profileColor === color}
+                                                    disabled={profileColor === bgColor}
                                                 >
-                                                    {profileColor === color && <Check />}
+                                                    {profileColor === bgColor && <Check />}
                                                 </Button>
                                             </div>
                                         ))
