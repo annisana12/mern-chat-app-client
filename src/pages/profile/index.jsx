@@ -1,10 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { getRandomProfileColor, profileColors } from "@/lib/utils";
 import { useAppStore } from "@/store"
-import { AlignRight, Camera, Check, Trash2 } from "lucide-react";
+import { getCroppedImage } from "@/utils/canvas_utils";
+import { AlignRight, Camera, Check, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Cropper from "react-easy-crop";
 import { toast } from "sonner";
 
 const Profile = () => {
@@ -12,9 +15,13 @@ const Profile = () => {
     const inputFileRef = useRef(null);
 
     const [name, setName] = useState('');
-    const [image, setImage] = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
     const [profileColor, setProfileColor] = useState('');
+    const [imageSrc, setImageSrc] = useState(null);
+    const [croppedImage, setCroppedImage] = useState(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
     useEffect(() => {
         if (!profileColor) {
@@ -23,9 +30,8 @@ const Profile = () => {
     }, [profileColor])
 
     const handleClickProfileImage = () => {
-        if (image) {
-            setImage(null);
-            setImagePreview(null);
+        if (croppedImage) {
+            setCroppedImage(null);
         } else {
             inputFileRef.current.click();
         }
@@ -50,13 +56,31 @@ const Profile = () => {
         const reader = new FileReader();
 
         reader.onload = () => {
-            setImage(file);
-            setImagePreview(reader.result);
+            setImageSrc(reader.result);
         }
 
         reader.readAsDataURL(file);
 
         inputFileRef.current.value = null;
+    }
+
+    const onRotateImage = () => {
+        setRotation((rotation + 90) % 360);
+    }
+
+    const onCropComplete = (croppedArea, croppedAreaPixels) => {
+        setCroppedAreaPixels(croppedAreaPixels);
+    }
+
+    const saveCroppedImage = async () => {
+        const image = await getCroppedImage(imageSrc, croppedAreaPixels, rotation);
+
+        setCroppedImage(image);
+        setImageSrc(null);
+        setCroppedAreaPixels(null);
+        setRotation(0);
+        setZoom(1);
+        setCrop({ x: 0, y: 0 });
     }
 
     return (
@@ -68,81 +92,134 @@ const Profile = () => {
                 </div>
             </div>
 
-            <div className="h-[80%] flex justify-center items-center">
-                <div className="w-[80%] max-w-sm">
-                    <div className="mb-8 md:mb-10 text-center md:text-left">
-                        <h2 className="text-3xl font-semibold">Setup Profile</h2>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-7 items-center">
-                        <div className="relative w-28 md:w-32">
-                            <Avatar className="w-28 h-28 md:w-32 md:h-32">
-                                <AvatarImage src={imagePreview} alt="profile-picture" />
-                                <AvatarFallback className={`${profileColor} text-white text-5xl`}>
-                                    {name.trim().charAt(0).toUpperCase() || userinfo.email.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-
-                            <Button
-                                onClick={handleClickProfileImage}
-                                className="rounded-full absolute bottom-0 right-0 w-10 h-10"
-                                size="icon"
-                            >
-                                {
-                                    image ? <Trash2 /> : <Camera />
-                                }
-                            </Button>
+            {
+                imageSrc ? (
+                    <div className="h-[85%] flex flex-col">
+                        <div className="relative flex-grow bg-zinc-700">
+                            <Cropper
+                                image={imageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                rotation={rotation}
+                                aspect={1}
+                                cropShape="round"
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={onCropComplete}
+                            />
                         </div>
 
-                        <input
-                            ref={inputFileRef}
-                            onChange={handleChangeFileInput}
-                            type="file"
-                            className="hidden"
-                            accept="image/png, image/jpeg"
-                        />
+                        <div className="p-6 flex justify-center">
+                            <div className="w-full max-w-xs">
+                                <div className="flex justify-between">
+                                    <Button
+                                        onClick={onRotateImage}
+                                        size="icon"
+                                        variant="outline"
+                                        className="mr-6"
+                                    >
+                                        <RotateCw />
+                                    </Button>
 
-                        <div className="flex flex-col gap-6 w-full">
-                            <Input
-                                type="text"
-                                id="email"
-                                defaultValue={userinfo.email}
-                                readOnly
-                            />
+                                    <div className="flex items-center flex-grow space-x-3">
+                                        <ZoomOut size={26} />
 
-                            <Input
-                                type="text"
-                                id="name"
-                                placeholder="Name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                            />
+                                        <Slider
+                                            value={[zoom]}
+                                            onValueChange={(values) => setZoom(values[0])}
+                                            min={1}
+                                            max={3}
+                                            step={0.1}
+                                        />
 
-                            {
-                                !image &&
-                                <div className="grid grid-cols-6 gap-3">
+                                        <ZoomIn size={26} />
+                                    </div>
+                                </div>
+
+                                <Button onClick={saveCroppedImage} className="w-full mt-6">
+                                    Set as Profile Picture
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="h-[80%] flex justify-center items-center">
+                        <div className="w-[80%] max-w-sm">
+                            <div className="mb-8 md:mb-10 text-center md:text-left">
+                                <h2 className="text-3xl font-semibold">Setup Profile</h2>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row gap-7 items-center">
+                                <div className="relative w-28 md:w-32">
+                                    <Avatar className="w-28 h-28 md:w-32 md:h-32">
+                                        <AvatarImage src={croppedImage} alt="profile-picture" />
+                                        <AvatarFallback className={`${profileColor} text-white text-5xl`}>
+                                            {name.trim().charAt(0).toUpperCase() || userinfo.email.charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+
+                                    <Button
+                                        onClick={handleClickProfileImage}
+                                        className="rounded-full absolute bottom-0 right-0 w-10 h-10"
+                                        size="icon"
+                                    >
+                                        {
+                                            croppedImage ? <Trash2 /> : <Camera />
+                                        }
+                                    </Button>
+                                </div>
+
+                                <input
+                                    ref={inputFileRef}
+                                    onChange={handleChangeFileInput}
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/png, image/jpeg"
+                                />
+
+                                <div className="flex flex-col gap-6 w-full">
+                                    <Input
+                                        type="text"
+                                        id="email"
+                                        defaultValue={userinfo.email}
+                                        readOnly
+                                    />
+
+                                    <Input
+                                        type="text"
+                                        id="name"
+                                        placeholder="Name"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                    />
+
                                     {
-                                        profileColors.map((bgColor, index) => (
-                                            <div className="flex justify-center" key={index}>
-                                                <Button
-                                                    onClick={() => setProfileColor(bgColor)}
-                                                    className={`rounded-full ${bgColor} w-7 h-7 hover:${bgColor} hover:opacity-75`}
-                                                    size="icon"
-                                                    disabled={profileColor === bgColor}
-                                                >
-                                                    {profileColor === bgColor && <Check />}
-                                                </Button>
-                                            </div>
-                                        ))
+                                        !croppedImage &&
+                                        <div className="grid grid-cols-6 gap-3">
+                                            {
+                                                profileColors.map((bgColor, index) => (
+                                                    <div className="flex justify-center" key={index}>
+                                                        <Button
+                                                            onClick={() => setProfileColor(bgColor)}
+                                                            className={`rounded-full ${bgColor} w-7 h-7 hover:${bgColor} hover:opacity-75`}
+                                                            size="icon"
+                                                            disabled={profileColor === bgColor}
+                                                        >
+                                                            {profileColor === bgColor && <Check />}
+                                                        </Button>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
                                     }
                                 </div>
-                            }
+                            </div>
+
+                            <Button className="w-full mt-10">Save Profile</Button>
                         </div>
                     </div>
-
-                    <Button className="w-full mt-10">Save Profile</Button>
-                </div>
-            </div>
+                )
+            }
         </div>
     )
 }
