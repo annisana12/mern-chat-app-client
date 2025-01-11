@@ -76,7 +76,11 @@ export const apiRequest = async (method, url, data = {}, config = {}, toastDurat
             ...config
         });
     } catch (error) {
-        if (error.response.data.message !== "Invalid refresh token") {
+        if (
+            error.response &&
+            error.response.data.message !== "Invalid access token" &&
+            error.response.data.message !== "Invalid refresh token"
+        ) {
             errorHandler(error, toastDuration);
         }
     }

@@ -5,8 +5,8 @@ import { Label } from "@/components/ui/label"
 import { apiRequest } from "@/lib/api_client"
 import { useAppStore } from "@/store"
 import { LOGIN_ROUTE } from "@/utils/constants"
-import { loginSchema } from "@/utils/validation_schema"
-import { AlignRight, Eye, EyeOff } from "lucide-react"
+import { loginSchema, validateForm } from "@/utils/validation"
+import { AlignRight, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -17,30 +17,20 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
 
     const setUserInfo = useAppStore((state) => state.setUserInfo);
 
     const toggleShowPassword = () => setShowPassword((prev) => !prev);
 
-    const validateForm = async () => {
-        try {
-            await loginSchema.validate({ email, password }, { abortEarly: false });
-
-            setErrors({});
-            return true;
-        } catch (error) {
-            const newState = error.inner.reduce((acc, current) => {
-                if (!acc[current.path]) acc[current.path] = current.message;
-                return acc;
-            }, {});
-
-            setErrors(newState);
-            return false;
-        }
-    }
-
     const handleSubmit = async () => {
-        const isValid = await validateForm();
+        setLoading(true);
+
+        const isValid = await validateForm(
+            loginSchema,
+            { email, password },
+            setErrors
+        );
 
         if (!isValid) return;
 
@@ -51,6 +41,8 @@ const Login = () => {
             {},
             10000 // 10 seconds
         );
+
+        setLoading(false);
 
         if (response && response.data.data.id) {
             setUserInfo(response.data.data);
@@ -124,7 +116,14 @@ const Login = () => {
                 </CardContent>
 
                 <CardFooter>
-                    <Button onClick={handleSubmit} className="w-full mt-5 mb-3">Sign In</Button>
+                    <Button
+                        onClick={handleSubmit}
+                        className="w-full mt-5 mb-3"
+                        disabled={loading}
+                    >
+                        {loading && <Loader2 className="animate-spin" />}
+                        Sign In
+                    </Button>
                 </CardFooter>
             </Card>
         </div>

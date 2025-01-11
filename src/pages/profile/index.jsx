@@ -2,26 +2,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { apiRequest } from "@/lib/api_client";
 import { getRandomProfileColor, profileColors } from "@/lib/utils";
 import { useAppStore } from "@/store"
 import { getCroppedImage } from "@/utils/canvas_utils";
-import { AlignRight, Camera, Check, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { SETUP_PROFILE_ROUTE } from "@/utils/constants";
+import { setupProfileSchema, validateForm } from "@/utils/validation";
+import { AlignRight, Camera, Check, Loader2, RotateCw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Cropper from "react-easy-crop";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Profile = () => {
-    const userinfo = useAppStore((state) => state.userinfo);
+    const navigate = useNavigate();
     const inputFileRef = useRef(null);
+
+    const userinfo = useAppStore((state) => state.userinfo);
+    const setUserInfo = useAppStore((state) => state.setUserInfo);
 
     const [name, setName] = useState('');
     const [profileColor, setProfileColor] = useState('');
     const [imageSrc, setImageSrc] = useState(null);
     const [croppedImage, setCroppedImage] = useState(null);
+    const [blobURL, setBlobURL] = useState(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (!profileColor) {
@@ -32,6 +42,7 @@ const Profile = () => {
     const handleClickProfileImage = () => {
         if (croppedImage) {
             setCroppedImage(null);
+            setBlobURL(null);
         } else {
             inputFileRef.current.click();
         }
@@ -73,14 +84,62 @@ const Profile = () => {
     }
 
     const saveCroppedImage = async () => {
-        const image = await getCroppedImage(imageSrc, croppedAreaPixels, rotation);
+        setLoading(true);
 
-        setCroppedImage(image);
+        const blob = await getCroppedImage(imageSrc, croppedAreaPixels, rotation);
+        const blobURL = URL.createObjectURL(blob);
+
+        setCroppedImage(blob);
+        setBlobURL(blobURL);
+
         setImageSrc(null);
         setCroppedAreaPixels(null);
         setRotation(0);
         setZoom(1);
         setCrop({ x: 0, y: 0 });
+
+        setLoading(false);
+    }
+
+    const saveProfile = async () => {
+        setLoading(true);
+
+        const isValid = await validateForm(
+            setupProfileSchema,
+            { name },
+            setErrors
+        );
+
+        if (!isValid) return;
+
+        const formData = new FormData();
+
+        formData.append("name", name);
+        formData.append("bgColor", profileColor);
+
+        if (croppedImage) {
+            const filename = userinfo.id + '.jpg';
+            const file = new File([croppedImage], filename, { type: 'image/jpeg' });
+
+            formData.append("profileImage", file);
+        }
+
+        const response = await apiRequest(
+            'post',
+            SETUP_PROFILE_ROUTE,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } },
+            10000
+        );
+
+        if (response && response.data.data.id) {
+            setLoading(false);
+            setUserInfo(response.data.data);
+
+            navigate('/chat');
+        } else {
+            setLoading(false);
+        }
     }
 
     return (
@@ -136,7 +195,12 @@ const Profile = () => {
                                     </div>
                                 </div>
 
-                                <Button onClick={saveCroppedImage} className="w-full mt-6">
+                                <Button
+                                    onClick={saveCroppedImage}
+                                    className="w-full mt-6"
+                                    disabled={loading}
+                                >
+                                    {loading && <Loader2 className="animate-spin" />}
                                     Set as Profile Picture
                                 </Button>
                             </div>
@@ -152,7 +216,7 @@ const Profile = () => {
                             <div className="flex flex-col md:flex-row gap-7 items-center">
                                 <div className="relative w-28 md:w-32">
                                     <Avatar className="w-28 h-28 md:w-32 md:h-32">
-                                        <AvatarImage src={croppedImage} alt="profile-picture" />
+                                        <AvatarImage src={blobURL} alt="profile-picture" />
                                         <AvatarFallback className={`${profileColor} text-white text-5xl`}>
                                             {name.trim().charAt(0).toUpperCase() || userinfo.email.charAt(0).toUpperCase()}
                                         </AvatarFallback>
@@ -164,7 +228,7 @@ const Profile = () => {
                                         size="icon"
                                     >
                                         {
-                                            croppedImage ? <Trash2 /> : <Camera />
+                                            blobURL ? <Trash2 /> : <Camera />
                                         }
                                     </Button>
                                 </div>
@@ -185,16 +249,20 @@ const Profile = () => {
                                         readOnly
                                     />
 
-                                    <Input
-                                        type="text"
-                                        id="name"
-                                        placeholder="Name"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                    />
+                                    <div className="flex flex-col gap-2">
+                                        <Input
+                                            type="text"
+                                            id="name"
+                                            placeholder="Name"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                        />
+
+                                        {errors.name && <span className="text-xs text-red-500 font-medium">{errors.name}</span>}
+                                    </div>
 
                                     {
-                                        !croppedImage &&
+                                        !blobURL &&
                                         <div className="grid grid-cols-6 gap-3">
                                             {
                                                 profileColors.map((bgColor, index) => (
@@ -215,7 +283,14 @@ const Profile = () => {
                                 </div>
                             </div>
 
-                            <Button className="w-full mt-10">Save Profile</Button>
+                            <Button
+                                onClick={saveProfile}
+                                className="w-full mt-10"
+                                disabled={loading}
+                            >
+                                {loading && <Loader2 className="animate-spin" />}
+                                Save Profile
+                            </Button>
                         </div>
                     </div>
                 )

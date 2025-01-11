@@ -85,7 +85,7 @@ export const getCroppedImage = async (
     // Return image as blob
     return new Promise((resolve, reject) => {
         croppedCanvas.toBlob((file) => {
-            resolve(URL.createObjectURL(file))
-        }, 'image/png')
+            resolve(file)
+        }, 'image/jpeg')
     })
 }
