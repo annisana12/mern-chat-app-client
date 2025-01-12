@@ -32,7 +32,10 @@ const Register = () => {
             setErrors
         );
 
-        if (!isValid) return;
+        if (!isValid) {
+            setLoading(false);
+            return;
+        };
 
         const response = await apiRequest(
             'post',

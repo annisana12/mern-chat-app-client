@@ -110,7 +110,10 @@ const Profile = () => {
             setErrors
         );
 
-        if (!isValid) return;
+        if (!isValid) {
+            setLoading(false);
+            return;
+        };
 
         const formData = new FormData();
 
@@ -132,13 +135,11 @@ const Profile = () => {
             10000
         );
 
-        if (response && response.data.data.id) {
-            setLoading(false);
-            setUserInfo(response.data.data);
+        setLoading(false);
 
+        if (response && response.data.data.id) {
+            setUserInfo(response.data.data);
             navigate('/chat');
-        } else {
-            setLoading(false);
         }
     }
 
